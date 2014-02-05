@@ -38,7 +38,7 @@ if $nup != nil
   $nup = $nup.to_i 
   tmpfile = `mktemp /tmp/fixpdf.XXXXXX.pdf`.chomp
   tmpfiles << tmpfile
-  cmd = "pdftk #{infile} cat 1-end output #{tmpfile}"
+  cmd = "pdftk \"#{infile}\" cat 1-end output #{tmpfile}"
   system(cmd) or raise "command failed: #{cmd}"
   infile = tmpfile
   tmpfile = `mktemp /tmp/fixpdf.XXXXXX.pdf`.chomp
@@ -59,7 +59,7 @@ if $nup != nil
 end
 
 # Get PDF size
-pdfinfo = `pdfinfo #{infile}`.split(/\n/).map { |l| l.split(/:\s+/) }
+pdfinfo = `pdfinfo \"#{infile}\"`.split(/\n/).map { |l| l.split(/:\s+/) }
 pdfinfo = Hash[pdfinfo]
 if $debug
   puts "pdfinfo output:"
@@ -71,14 +71,14 @@ if size[0].to_f > size[2].to_f
   puts "Rotation needed"
   tmpfile = `mktemp /tmp/fixpdf.XXXXXX.pdf`.chomp
   tmpfiles << tmpfile
-  cmd = "pdftk #{infile} rotate 1-endeast output #{tmpfile}"
+  cmd = "pdftk \"#{infile}\" rotate 1-endeast output #{tmpfile}"
   system(cmd) or raise "command failed: #{cmd}"
   infile = tmpfile
 end
 
 # Final run through ghostscript to turn into PDF 1.4
-ofile = File.basename(file).gsub(/.pdf$/i, '-fixed.pdf')
-cmd = "gs #{$debug ? '' : '-dQUIET'} -sDEVICE=pdfwrite #{$greyscale} -dNOPAUSE -dBATCH -dSAFER -dFIXEDMEDIA -dCompatibilityLevel=1.4 -dAutoRotatePages=/None -sPAPERSIZE=a4 -sOutputFile=#{ofile} #{infile}"
+ofile = File.basename(file).gsub(/.pdf$/i, '.fixed.pdf')
+cmd = "gs #{$debug ? '' : '-dQUIET'} -sDEVICE=pdfwrite #{$greyscale} -dNOPAUSE -dBATCH -dSAFER -dFIXEDMEDIA -dCompatibilityLevel=1.4 -dAutoRotatePages=/None -sPAPERSIZE=a4 -sOutputFile=\"#{ofile}\" \"#{infile}\""
 puts "Running gs: #{cmd}" if $debug
 system(cmd) or raise "command failed: #{cmd}"
 puts "PDF rewritten as: #{ofile}"
