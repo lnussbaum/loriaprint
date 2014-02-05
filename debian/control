@@ -1,0 +1,14 @@
+Source: loriaprint
+Section: text
+Priority: optional
+Maintainer: Lucas Nussbaum <lucas@debian.org>
+Build-Depends: debhelper (>= 7.0.50~), gem2deb (>= 0.6.1~)
+Standards-Version: 3.9.4
+XS-Ruby-Versions: all
+
+Package: loriaprint
+Architecture: all
+XB-Ruby-Versions: ${ruby:Versions}
+Depends: ${shlibs:Depends}, ${misc:Depends}, ruby | ruby-interpreter, pdftk, poppler-utils
+Description: FIXME
+ <insert long description, indented with spaces>

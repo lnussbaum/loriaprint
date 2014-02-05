@@ -1,0 +1,85 @@
+#!/usr/bin/ruby
+
+require 'optparse'
+require 'pp'
+require 'fileutils'
+
+$nup = nil
+$debug=false
+options = {}
+OptionParser.new do |opts|
+  opts.banner = "Usage: fixpdf [options] FILE"
+
+  opts.on("-n", "--nup NUP", "N-up the PDF. Valid NUP values are 2,4,8") do |nup|
+    $nup = nup
+  end
+
+  opts.on("-d", "--debug", "Run in debug mode") do
+    $debug = true
+  end
+end.parse!
+
+file=ARGV[0]
+tmpfiles = []
+
+ENV['LC_ALL']='C' # ensure consistent output even with foreign languages
+
+infile = file
+
+if $nup != nil
+  $nup = $nup.to_i 
+  tmpfile = `mktemp /tmp/fixpdf.XXXXXX.pdf`.chomp
+  tmpfiles << tmpfile
+  cmd = "pdftk #{infile} cat 1-end output #{tmpfile}"
+  system(cmd) or raise "command failed: #{cmd}"
+  infile = tmpfile
+  tmpfile = `mktemp /tmp/fixpdf.XXXXXX.pdf`.chomp
+  tmpfiles << tmpfile
+  case $nup
+    when 2 then
+      cmd = "pdfnup --paper a4paper --no-landscape --nup 1x2 --frame true --offset '0cm 0cm' --delta '1mm 1mm' --scale 0.95 --outfile #{tmpfile} #{infile}"
+    when 4 then
+      cmd = "pdfnup --no-tidy --paper a4paper --landscape --nup 2x2 --frame true --offset '0cm 0cm' --delta '1mm 1mm' --scale 0.95 --outfile #{tmpfile} #{infile}"
+    when 8 then
+      cmd = "pdfnup --paper a4paper --no-landscape --nup 2x4 --frame true --offset '0cm 0cm' --delta '0.5mm 0.5mm' --scale 0.965 --outfile #{tmpfile} #{infile}"
+    else
+      raise "Invalid NUP: #{$nup}"
+  end
+  puts "Running: #{cmd}" if $debug
+  system(cmd) or raise "command failed: #{cmd}"
+  infile = tmpfile
+end
+
+pdfinfo = `pdfinfo #{infile}`.split(/\n/).map { |l| l.split(/:\s+/) }
+pdfinfo = Hash[pdfinfo]
+
+if $debug
+  puts "pdfinfo output:"
+  pp pdfinfo
+end
+
+size = pdfinfo['Page size'].split(' ')
+if size[0].to_f > size[2].to_f
+  puts "Rotation needed"
+  tmpfile = `mktemp /tmp/fixpdf.XXXXXX.pdf`.chomp
+  tmpfiles << tmpfile
+  cmd = "pdftk #{infile} rotate 1-endeast output #{tmpfile}"
+  system(cmd) or raise "command failed: #{cmd}"
+  infile = tmpfile
+end
+
+ofile = File.basename(file).gsub(/.pdf$/i, '-fixed.pdf')
+
+cmd = "gs #{$debug ? '' : '-dQUIET'} -sDEVICE=pdfwrite -dNOPAUSE -dBATCH -dSAFER -dFIXEDMEDIA -dCompatibilityLevel=1.4 -dAutoRotatePages=/None -sPAPERSIZE=a4 -sOutputFile=#{ofile} #{infile}"
+puts "Running gs: #{cmd}" if $debug
+system(cmd) or raise "command failed: #{cmd}"
+
+puts "PDF rewritten as: #{ofile}"
+
+if not $debug
+  tmpfiles.each do |f|
+    FileUtils.rm(f)
+  end
+end
+
+exit(0)
