@@ -4,6 +4,7 @@ require 'optparse'
 require 'pp'
 require 'fileutils'
 
+# Command-line parsing
 $nup = nil
 $debug=false
 options = {}
@@ -26,6 +27,7 @@ ENV['LC_ALL']='C' # ensure consistent output even with foreign languages
 
 infile = file
 
+# Handle --nup
 if $nup != nil
   $nup = $nup.to_i 
   tmpfile = `mktemp /tmp/fixpdf.XXXXXX.pdf`.chomp
@@ -50,14 +52,14 @@ if $nup != nil
   infile = tmpfile
 end
 
+# Get PDF size
 pdfinfo = `pdfinfo #{infile}`.split(/\n/).map { |l| l.split(/:\s+/) }
 pdfinfo = Hash[pdfinfo]
-
 if $debug
   puts "pdfinfo output:"
   pp pdfinfo
 end
-
+# Rotate if not in portrait mode
 size = pdfinfo['Page size'].split(' ')
 if size[0].to_f > size[2].to_f
   puts "Rotation needed"
@@ -68,14 +70,14 @@ if size[0].to_f > size[2].to_f
   infile = tmpfile
 end
 
+# Final run through ghostscript to turn into PDF 1.4
 ofile = File.basename(file).gsub(/.pdf$/i, '-fixed.pdf')
-
 cmd = "gs #{$debug ? '' : '-dQUIET'} -sDEVICE=pdfwrite -dNOPAUSE -dBATCH -dSAFER -dFIXEDMEDIA -dCompatibilityLevel=1.4 -dAutoRotatePages=/None -sPAPERSIZE=a4 -sOutputFile=#{ofile} #{infile}"
 puts "Running gs: #{cmd}" if $debug
 system(cmd) or raise "command failed: #{cmd}"
-
 puts "PDF rewritten as: #{ofile}"
 
+# Clean temporary files
 if not $debug
   tmpfiles.each do |f|
     FileUtils.rm(f)
