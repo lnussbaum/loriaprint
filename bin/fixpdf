@@ -7,12 +7,18 @@ require 'fileutils'
 # Command-line parsing
 $nup = nil
 $debug=false
+$greyscale = ''
 options = {}
 OptionParser.new do |opts|
   opts.banner = "Usage: fixpdf [options] FILE"
 
   opts.on("-n", "--nup NUP", "N-up the PDF. Valid NUP values are 2,4,8") do |nup|
     $nup = nup
+  end
+
+  opts.on("-g", "--greyscale", "Convert to greyscale") do
+    # FIXME make sure that this is enough by looking at the printer's counters on the web interface
+    $greyscale = '-sColorConversionStrategy=Gray -dProcessColorModel=/DeviceGray'
   end
 
   opts.on("-d", "--debug", "Run in debug mode") do
@@ -72,7 +78,7 @@ end
 
 # Final run through ghostscript to turn into PDF 1.4
 ofile = File.basename(file).gsub(/.pdf$/i, '-fixed.pdf')
-cmd = "gs #{$debug ? '' : '-dQUIET'} -sDEVICE=pdfwrite -dNOPAUSE -dBATCH -dSAFER -dFIXEDMEDIA -dCompatibilityLevel=1.4 -dAutoRotatePages=/None -sPAPERSIZE=a4 -sOutputFile=#{ofile} #{infile}"
+cmd = "gs #{$debug ? '' : '-dQUIET'} -sDEVICE=pdfwrite #{$greyscale} -dNOPAUSE -dBATCH -dSAFER -dFIXEDMEDIA -dCompatibilityLevel=1.4 -dAutoRotatePages=/None -sPAPERSIZE=a4 -sOutputFile=#{ofile} #{infile}"
 puts "Running gs: #{cmd}" if $debug
 system(cmd) or raise "command failed: #{cmd}"
 puts "PDF rewritten as: #{ofile}"
