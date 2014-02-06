@@ -8,9 +8,14 @@ require 'fileutils'
 $nup = nil
 $debug=false
 $greyscale = ''
+$overwrite = false
 options = {}
 OptionParser.new do |opts|
   opts.banner = "Usage: fixpdf [options] FILE"
+
+  opts.on("-o", "--overwrite", "Overwrite the original PDF with the final one") do
+    $overwrite = true
+  end
 
   opts.on("-n", "--nup NUP", "N-up the PDF. Valid NUP values are 2,4,8") do |nup|
     $nup = nup
@@ -76,11 +81,21 @@ if size[0].to_f > size[2].to_f
   infile = tmpfile
 end
 
-# Final run through ghostscript to turn into PDF 1.4
-ofile = File.basename(file).gsub(/.pdf$/i, '.fixed.pdf')
-cmd = "gs #{$debug ? '' : '-dQUIET'} -sDEVICE=pdfwrite #{$greyscale} -dNOPAUSE -dBATCH -dSAFER -dFIXEDMEDIA -dCompatibilityLevel=1.4 -dAutoRotatePages=/None -sPAPERSIZE=a4 -sOutputFile=\"#{ofile}\" \"#{infile}\""
+tmpfile = `mktemp /tmp/fixpdf.XXXXXX.pdf`.chomp
+tmpfiles << tmpfile
+cmd = "gs #{$debug ? '' : '-dQUIET'} -sDEVICE=pdfwrite #{$greyscale} -dNOPAUSE -dBATCH -dSAFER -dFIXEDMEDIA -dCompatibilityLevel=1.4 -dAutoRotatePages=/None -sPAPERSIZE=a4 -sOutputFile=\"#{tmpfile}\" \"#{infile}\""
 puts "Running gs: #{cmd}" if $debug
 system(cmd) or raise "command failed: #{cmd}"
+infile = tmpfile
+
+# Final run through ghostscript to turn into PDF 1.4
+if $overwrite
+  ofile = file
+else
+  ofile = File.basename(file).gsub(/.pdf$/i, '.fixed.pdf')
+end
+FileUtils.cp(infile, ofile)
+
 puts "PDF rewritten as: #{ofile}"
 
 # Clean temporary files
