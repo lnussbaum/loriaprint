@@ -13,7 +13,7 @@ options = {}
 OptionParser.new do |opts|
   opts.banner = "Usage: fixpdf [options] FILE"
 
-  opts.on("-o", "--overwrite", "Overwrite the original PDF with the final one") do
+  opts.on("-o", "--overwrite", "Overwrite the original PDF with the final one instead of creating a new one") do
     $overwrite = true
   end
 
