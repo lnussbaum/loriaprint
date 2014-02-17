@@ -5,6 +5,7 @@ require 'pp'
 require 'fileutils'
 
 # Command-line parsing
+$range = nil
 $nup = nil
 $debug=false
 $greyscale = ''
@@ -15,6 +16,10 @@ OptionParser.new do |opts|
 
   opts.on("-o", "--overwrite", "Overwrite the original PDF with the final one instead of creating a new one") do
     $overwrite = true
+  end
+
+  opts.on("-r", "--range RANGE", "Select a page range (e.g. 1-5, or 3-end)") do |range|
+    $range = range
   end
 
   opts.on("-n", "--nup NUP", "N-up the PDF. Valid NUP values are 2,4,8") do |nup|
@@ -37,6 +42,15 @@ tmpfiles = []
 ENV['LC_ALL']='C' # ensure consistent output even with foreign languages
 
 infile = file
+
+# Handle --range
+if $range != nil
+  tmpfile = `mktemp /tmp/fixpdf.XXXXXX.pdf`.chomp
+  tmpfiles << tmpfile
+  cmd = "pdftk \"#{infile}\" cat #{$range} output #{tmpfile}"
+  system(cmd) or raise "command failed: #{cmd}"
+  infile = tmpfile
+end
 
 # Handle --nup
 if $nup != nil
