@@ -11,6 +11,7 @@ $debug=false
 $greyscale = ''
 $overwrite = false
 $cairo = false
+$cairo_opts = ''
 options = {}
 OptionParser.new do |opts|
   opts.banner = "Usage: fixpdf [options] FILE"
@@ -27,8 +28,12 @@ OptionParser.new do |opts|
     $nup = nup
   end
 
-  opts.on("--cairo", "Pass the PDF through Cairo using pdftocairo. That helps with extremely broken PDF files") do
+  opts.on("--cairo", "Pass the PDF through Cairo using pdftocairo. That helps with strange PDF files") do
     $cairo = true
+  end
+
+  opts.on("--cairo-options OPTIONS", "Pass additional options to pdftocairo, such as -expand, -noshrink, or -nocenter") do |opts|
+    $cairo_opts = opts
   end
 
   opts.on("-g", "--greyscale", "Convert to greyscale") do
@@ -103,7 +108,7 @@ end
 if $cairo
   tmpfile = `mktemp /tmp/fixpdf.XXXXXX.pdf`.chomp
   tmpfiles << tmpfile
-  cmd = "pdftocairo -pdf -paper A4 #{infile} #{tmpfile}"
+  cmd = "pdftocairo -pdf -paper A4 #{$cairo_opts} #{infile} #{tmpfile}"
   puts "Running pdftocairo: #{cmd}" if $debug
   system(cmd) or raise "command failed: #{cmd}"
   infile = tmpfile
