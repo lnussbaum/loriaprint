@@ -10,6 +10,7 @@ $nup = nil
 $debug=false
 $greyscale = ''
 $overwrite = false
+$cairo = false
 options = {}
 OptionParser.new do |opts|
   opts.banner = "Usage: fixpdf [options] FILE"
@@ -24,6 +25,10 @@ OptionParser.new do |opts|
 
   opts.on("-n", "--nup NUP", "N-up the PDF. Valid NUP values are 2,4,8") do |nup|
     $nup = nup
+  end
+
+  opts.on("--cairo", "Pass the PDF through Cairo using pdftocairo. That helps with extremely broken PDF files") do
+    $cairo = true
   end
 
   opts.on("-g", "--greyscale", "Convert to greyscale") do
@@ -95,14 +100,23 @@ if size[0].to_f > size[2].to_f
   infile = tmpfile
 end
 
+if $cairo
+  tmpfile = `mktemp /tmp/fixpdf.XXXXXX.pdf`.chomp
+  tmpfiles << tmpfile
+  cmd = "pdftocairo -pdf -paper A4 #{infile} #{tmpfile}"
+  puts "Running pdftocairo: #{cmd}" if $debug
+  system(cmd) or raise "command failed: #{cmd}"
+  infile = tmpfile
+end
+
+# Final run through ghostscript to turn into PDF 1.4
 tmpfile = `mktemp /tmp/fixpdf.XXXXXX.pdf`.chomp
 tmpfiles << tmpfile
-cmd = "gs #{$debug ? '' : '-dQUIET'} -sDEVICE=pdfwrite #{$greyscale} -dNOPAUSE -dBATCH -dSAFER -dFIXEDMEDIA -dCompatibilityLevel=1.4 -dAutoRotatePages=/None -sPAPERSIZE=a4 -sOutputFile=\"#{tmpfile}\" \"#{infile}\""
+cmd = "gs #{$debug ? '' : '-dQUIET'} -sDEVICE=pdfwrite #{$greyscale} -dNOPAUSE -dBATCH -dSAFER -dFIXEDMEDIA -dPDFFitPage -dCompatibilityLevel=1.4 -dAutoRotatePages=/None -sPAPERSIZE=a4 -sOutputFile=\"#{tmpfile}\" \"#{infile}\""
 puts "Running gs: #{cmd}" if $debug
 system(cmd) or raise "command failed: #{cmd}"
 infile = tmpfile
 
-# Final run through ghostscript to turn into PDF 1.4
 if $overwrite
   ofile = file
 else
