@@ -104,7 +104,7 @@ if size[0].to_f > size[2].to_f
   puts "Rotation needed"
   tmpfile = `mktemp /tmp/fixpdf.XXXXXX.pdf`.chomp
   tmpfiles << tmpfile
-  cmd = "pdftk \"#{infile}\" rotate 1-endeast output #{tmpfile}"
+  cmd = "pdftk \"#{infile}\" cat 1-endeast output #{tmpfile}"
   system(cmd) or raise "command failed: #{cmd}"
   infile = tmpfile
 end
