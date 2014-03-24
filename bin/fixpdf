@@ -101,10 +101,15 @@ end
 # Rotate if not in portrait mode
 size = pdfinfo['Page size'].split(' ')
 if size[0].to_f > size[2].to_f
+  if `pdftk --version` =~ /pdftk 1\./
+    rotatecmd = "1-endE" # wheezy-compatible
+  else
+    rotatecmd = "1-endeast"
+  end
   puts "Rotation needed"
   tmpfile = `mktemp /tmp/fixpdf.XXXXXX.pdf`.chomp
   tmpfiles << tmpfile
-  cmd = "pdftk \"#{infile}\" cat 1-endeast output #{tmpfile}"
+  cmd = "pdftk \"#{infile}\" cat #{rotatecmd} output #{tmpfile}"
   system(cmd) or raise "command failed: #{cmd}"
   infile = tmpfile
 end
