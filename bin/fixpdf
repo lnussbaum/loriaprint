@@ -42,7 +42,6 @@ OptionParser.new do |opts|
   end
 
   opts.on("-g", "--greyscale", "Convert to greyscale") do
-    # FIXME make sure that this is enough by looking at the printer's counters on the web interface
     $greyscale = '-sColorConversionStrategy=Gray -dProcessColorModel=/DeviceGray'
   end
 
