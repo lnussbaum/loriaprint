@@ -11,6 +11,7 @@ $debug=false
 $greyscale = ''
 $overwrite = false
 $cairo = false
+$print = false
 $cairo_opts = ''
 options = {}
 OptionParser.new do |opts|
@@ -18,6 +19,10 @@ OptionParser.new do |opts|
 
   opts.on("-o", "--overwrite", "Overwrite the original PDF with the final one instead of creating a new file") do
     $overwrite = true
+  end
+
+  opts.on("-p", "--print", "Print the resulting PDF instead of creating a new file. The FIXPDF_SERVER and FIXPDF_PRINTER environment variables must be set") do
+    $print = true
   end
 
   opts.on("-r", "--range RANGE", "Select a page range (e.g. 1-5, or 3-end)") do |range|
@@ -122,14 +127,21 @@ puts "Running gs: #{cmd}" if $debug
 system(cmd) or raise "command failed: #{cmd}"
 infile = tmpfile
 
+
 if $overwrite
   ofile = file
+  FileUtils.cp(infile, ofile)
+  puts "PDF rewritten as: #{ofile}"
+elsif $print
+  puts "Printing to #{ENV['FIXPDF_SERVER']} - #{ENV['FIXPDF_PRINTER']}"
+  cmd = "lp -h #{ENV['FIXPDF_SERVER']}/version=1.1 -d #{ENV['FIXPDF_PRINTER']} #{infile}"
+  system(cmd) or raise "command failed: #{cmd}"
 else
   ofile = File.basename(file).gsub(/.pdf$/i, '.fixed.pdf')
+  FileUtils.cp(infile, ofile)
+  puts "PDF rewritten as: #{ofile}"
 end
-FileUtils.cp(infile, ofile)
 
-puts "PDF rewritten as: #{ofile}"
 
 # Clean temporary files
 if not $debug
