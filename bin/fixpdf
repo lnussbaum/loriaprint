@@ -50,33 +50,33 @@ OptionParser.new do |opts|
   end
 end.parse!
 
-file=ARGV[0]
-tmpfiles = []
+def process_file(file)
+  tmpfiles = []
 
-ENV['LC_ALL']='C' # ensure consistent output even with foreign languages
+  ENV['LC_ALL']='C' # ensure consistent output even with foreign languages
 
-infile = file
+  infile = file
 
-# Handle --range
-if $range != nil
-  tmpfile = `mktemp /tmp/fixpdf.XXXXXX.pdf`.chomp
-  tmpfiles << tmpfile
-  cmd = "pdftk \"#{infile}\" cat #{$range} output #{tmpfile}"
-  system(cmd) or raise "command failed: #{cmd}"
-  infile = tmpfile
-end
+  # Handle --range
+  if $range != nil
+    tmpfile = `mktemp /tmp/fixpdf.XXXXXX.pdf`.chomp
+    tmpfiles << tmpfile
+    cmd = "pdftk \"#{infile}\" cat #{$range} output #{tmpfile}"
+    system(cmd) or raise "command failed: #{cmd}"
+    infile = tmpfile
+  end
 
-# Handle --nup
-if $nup != nil
-  $nup = $nup.to_i 
-  tmpfile = `mktemp /tmp/fixpdf.XXXXXX.pdf`.chomp
-  tmpfiles << tmpfile
-  cmd = "pdftk \"#{infile}\" cat 1-end output #{tmpfile}"
-  system(cmd) or raise "command failed: #{cmd}"
-  infile = tmpfile
-  tmpfile = `mktemp /tmp/fixpdf.XXXXXX.pdf`.chomp
-  tmpfiles << tmpfile
-  case $nup
+  # Handle --nup
+  if $nup != nil
+    $nup = $nup.to_i 
+    tmpfile = `mktemp /tmp/fixpdf.XXXXXX.pdf`.chomp
+    tmpfiles << tmpfile
+    cmd = "pdftk \"#{infile}\" cat 1-end output #{tmpfile}"
+    system(cmd) or raise "command failed: #{cmd}"
+    infile = tmpfile
+    tmpfile = `mktemp /tmp/fixpdf.XXXXXX.pdf`.chomp
+    tmpfiles << tmpfile
+    case $nup
     when 2 then
       cmd = "pdfnup --paper a4paper --no-landscape --nup 1x2 --frame true --offset '0cm 0cm' --delta '1mm 1mm' --scale 0.95 --outfile #{tmpfile} #{infile}"
     when 4 then
@@ -85,73 +85,80 @@ if $nup != nil
       cmd = "pdfnup --paper a4paper --no-landscape --nup 2x4 --frame true --offset '0cm 0cm' --delta '0.5mm 0.5mm' --scale 0.965 --outfile #{tmpfile} #{infile}"
     else
       raise "Invalid NUP: #{$nup}"
+    end
+    puts "Running: #{cmd}" if $debug
+    system(cmd) or raise "command failed: #{cmd}"
+    infile = tmpfile
   end
-  puts "Running: #{cmd}" if $debug
+
+  # Get PDF size
+  pdfinfo = `pdfinfo \"#{infile}\"`.split(/\n/).map { |l| l.split(/:\s+/) }
+  pdfinfo = Hash[pdfinfo]
+  if $debug
+    puts "pdfinfo output:"
+    pp pdfinfo
+  end
+  # Rotate if not in portrait mode
+  size = pdfinfo['Page size'].split(' ')
+  if size[0].to_f > size[2].to_f
+    if `pdftk --version` =~ /pdftk 1\./
+      rotatecmd = "1-endE" # wheezy-compatible
+    else
+      rotatecmd = "1-endeast"
+    end
+    puts "Rotation needed"
+    tmpfile = `mktemp /tmp/fixpdf.XXXXXX.pdf`.chomp
+    tmpfiles << tmpfile
+    cmd = "pdftk \"#{infile}\" cat #{rotatecmd} output #{tmpfile}"
+    system(cmd) or raise "command failed: #{cmd}"
+    infile = tmpfile
+  end
+
+  if $cairo
+    tmpfile = `mktemp /tmp/fixpdf.XXXXXX.pdf`.chomp
+    tmpfiles << tmpfile
+    cmd = "pdftocairo -pdf -paper A4 #{$cairo_opts} #{infile} #{tmpfile}"
+    puts "Running pdftocairo: #{cmd}" if $debug
+    system(cmd) or raise "command failed: #{cmd}"
+    infile = tmpfile
+  end
+
+  # Final run through ghostscript to turn into PDF 1.4
+  tmpfile = `mktemp /tmp/fixpdf.XXXXXX.pdf`.chomp
+  tmpfiles << tmpfile
+  cmd = "gs #{$debug ? '' : '-dQUIET'} -sDEVICE=pdfwrite #{$greyscale} -dNOPAUSE -dBATCH -dSAFER -dFIXEDMEDIA -dPDFFitPage -dCompatibilityLevel=1.4 -dAutoRotatePages=/None -sPAPERSIZE=a4 -sOutputFile=\"#{tmpfile}\" \"#{infile}\""
+  puts "Running gs: #{cmd}" if $debug
   system(cmd) or raise "command failed: #{cmd}"
   infile = tmpfile
-end
 
-# Get PDF size
-pdfinfo = `pdfinfo \"#{infile}\"`.split(/\n/).map { |l| l.split(/:\s+/) }
-pdfinfo = Hash[pdfinfo]
-if $debug
-  puts "pdfinfo output:"
-  pp pdfinfo
-end
-# Rotate if not in portrait mode
-size = pdfinfo['Page size'].split(' ')
-if size[0].to_f > size[2].to_f
-  if `pdftk --version` =~ /pdftk 1\./
-    rotatecmd = "1-endE" # wheezy-compatible
+
+  if $overwrite
+    ofile = file
+    FileUtils.cp(infile, ofile)
+    puts "PDF rewritten as: #{ofile}"
+  elsif $print
+    puts "Printing to #{ENV['FIXPDF_SERVER']} - #{ENV['FIXPDF_PRINTER']}"
+    cmd = "lp -h #{ENV['FIXPDF_SERVER']}/version=1.1 -d #{ENV['FIXPDF_PRINTER']} #{infile}"
+    system(cmd) or raise "command failed: #{cmd}"
   else
-    rotatecmd = "1-endeast"
+    ofile = File.basename(file).gsub(/.pdf$/i, '.fixed.pdf')
+    FileUtils.cp(infile, ofile)
+    puts "PDF rewritten as: #{ofile}"
   end
-  puts "Rotation needed"
-  tmpfile = `mktemp /tmp/fixpdf.XXXXXX.pdf`.chomp
-  tmpfiles << tmpfile
-  cmd = "pdftk \"#{infile}\" cat #{rotatecmd} output #{tmpfile}"
-  system(cmd) or raise "command failed: #{cmd}"
-  infile = tmpfile
-end
-
-if $cairo
-  tmpfile = `mktemp /tmp/fixpdf.XXXXXX.pdf`.chomp
-  tmpfiles << tmpfile
-  cmd = "pdftocairo -pdf -paper A4 #{$cairo_opts} #{infile} #{tmpfile}"
-  puts "Running pdftocairo: #{cmd}" if $debug
-  system(cmd) or raise "command failed: #{cmd}"
-  infile = tmpfile
-end
-
-# Final run through ghostscript to turn into PDF 1.4
-tmpfile = `mktemp /tmp/fixpdf.XXXXXX.pdf`.chomp
-tmpfiles << tmpfile
-cmd = "gs #{$debug ? '' : '-dQUIET'} -sDEVICE=pdfwrite #{$greyscale} -dNOPAUSE -dBATCH -dSAFER -dFIXEDMEDIA -dPDFFitPage -dCompatibilityLevel=1.4 -dAutoRotatePages=/None -sPAPERSIZE=a4 -sOutputFile=\"#{tmpfile}\" \"#{infile}\""
-puts "Running gs: #{cmd}" if $debug
-system(cmd) or raise "command failed: #{cmd}"
-infile = tmpfile
 
 
-if $overwrite
-  ofile = file
-  FileUtils.cp(infile, ofile)
-  puts "PDF rewritten as: #{ofile}"
-elsif $print
-  puts "Printing to #{ENV['FIXPDF_SERVER']} - #{ENV['FIXPDF_PRINTER']}"
-  cmd = "lp -h #{ENV['FIXPDF_SERVER']}/version=1.1 -d #{ENV['FIXPDF_PRINTER']} #{infile}"
-  system(cmd) or raise "command failed: #{cmd}"
-else
-  ofile = File.basename(file).gsub(/.pdf$/i, '.fixed.pdf')
-  FileUtils.cp(infile, ofile)
-  puts "PDF rewritten as: #{ofile}"
-end
-
-
-# Clean temporary files
-if not $debug
-  tmpfiles.each do |f|
-    FileUtils.rm(f)
+  # Clean temporary files
+  if not $debug
+    tmpfiles.each do |f|
+      FileUtils.rm(f)
+    end
   end
+end
+
+ARGV.each do |file|
+  puts "Processing #{file} ..."
+  process_file(file)
+  puts
 end
 
 exit(0)
