@@ -92,7 +92,7 @@ def process_file(file)
   end
 
   # Get PDF size
-  pdfinfo = `pdfinfo \"#{infile}\"`.split(/\n/).map { |l| l.split(/:\s+/) }
+  pdfinfo = `pdfinfo \"#{infile}\"`.split(/\n/).map { |l| l.split(/:\s+/, 2) }
   pdfinfo = Hash[pdfinfo]
   if $debug
     puts "pdfinfo output:"
