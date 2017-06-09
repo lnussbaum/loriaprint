@@ -137,8 +137,13 @@ def process_file(file)
     FileUtils.cp(infile, ofile)
     puts "PDF rewritten as: #{ofile}"
   elsif $print
+    if ENV['FIXPDF_USER']
+      user = "-U #{ENV['FIXPDF_USER']}"
+    else
+      user = ""
+    end
     puts "Printing to #{ENV['FIXPDF_SERVER']} - #{ENV['FIXPDF_PRINTER']}"
-    cmd = "lp -h #{ENV['FIXPDF_SERVER']}/version=1.1 -d #{ENV['FIXPDF_PRINTER']} #{infile}"
+    cmd = "lp -d #{ENV['FIXPDF_PRINTER']} #{user} -h #{ENV['FIXPDF_SERVER']}/version=1.1 #{infile}"
     system(cmd) or raise "command failed: #{cmd}"
   else
     ofile = File.basename(file).gsub(/.pdf$/i, '.fixed.pdf')
