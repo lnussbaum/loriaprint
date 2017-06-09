@@ -117,7 +117,7 @@ def process_file(file)
   if $cairo
     tmpfile = `mktemp /tmp/fixpdf.XXXXXX.pdf`.chomp
     tmpfiles << tmpfile
-    cmd = "pdftocairo -pdf -paper A4 #{$cairo_opts} #{infile} #{tmpfile}"
+    cmd = "pdftocairo -pdf -paper A4 #{$cairo_opts} \"#{infile}\" \"#{tmpfile}\""
     puts "Running pdftocairo: #{cmd}" if $debug
     system(cmd) or raise "command failed: #{cmd}"
     infile = tmpfile
