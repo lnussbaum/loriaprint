@@ -21,7 +21,7 @@ OptionParser.new do |opts|
     $overwrite = true
   end
 
-  opts.on("-p", "--print", "Print the resulting PDF instead of creating a new file. The FIXPDF_SERVER and FIXPDF_PRINTER environment variables must be set") do
+  opts.on("-p", "--print", "Print the resulting PDF instead of creating a new file. The FIXPDF_SERVER and FIXPDF_PRINTER environment variables must be set. The FIXPDF_USER environment might need to be set.") do
     $print = true
   end
 
