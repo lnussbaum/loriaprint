@@ -9,6 +9,6 @@ XS-Ruby-Versions: all
 Package: loriaprint
 Architecture: all
 XB-Ruby-Versions: ${ruby:Versions}
-Depends: ${shlibs:Depends}, ${misc:Depends}, ruby | ruby-interpreter, pdftk, poppler-utils
+Depends: ${shlibs:Depends}, ${misc:Depends}, ruby | ruby-interpreter, pdftk, poppler-utils, cups-client
 Description: FIXME
  <insert long description, indented with spaces>
